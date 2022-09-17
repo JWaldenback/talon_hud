@@ -17,9 +17,9 @@ class HeadUpCursorTracker(BaseWidget):
     mouse_poller = None
     prev_mouse_pos = None
     smooth_mode = True
+    canvas_visibility = True
 
     preferences = HeadUpDisplayUserWidgetPreferences(type="cursor_tracker", x=15, y=15, width=15, height=15, enabled=True, sleep_enabled=False)
-
     
     # New content topic types
     topic_types = ["cursor_regions"]
@@ -47,6 +47,7 @@ class HeadUpCursorTracker(BaseWidget):
                 self.prev_mouse_pos = ctrl.mouse_pos()
                 self.determine_active_icon(self.prev_mouse_pos)            
                 self.soft_enable()
+                self.set_visibility(True)
     
     def disable(self, persist=False):
         if self.enabled:
@@ -59,6 +60,10 @@ class HeadUpCursorTracker(BaseWidget):
             cron.cancel(self.mouse_poller)
             self.mouse_poller = cron.interval("30ms", self.poll_mouse_pos)
             if self.canvas:
+                pos = ctrl.mouse_pos()
+                self.x = pos[0] + self.limit_x
+                self.y = pos[1] + self.limit_y
+                self.canvas.move(self.x, self.y)
                 self.canvas.freeze()
             
     def soft_disable(self):
@@ -99,9 +104,9 @@ class HeadUpCursorTracker(BaseWidget):
                     self.y = pos[1] + self.limit_y
                     
                     self.canvas.move(self.x, self.y)
-                    
                     self.determine_active_icon(pos)
-                    self.canvas.freeze()
+                    if self.canvas_visibility:
+                        self.canvas.freeze()
     
     # Determine the active icon based on the region the icon is in
     # If multiple regions overlap, choose the smaller more specific one
@@ -183,3 +188,7 @@ class HeadUpCursorTracker(BaseWidget):
             pass
         elif (self.setup_type in ["dimension", "limit", "font_size"] ):
             super().setup_move(pos)
+
+    def set_visibility(self, visible = True):
+        super().set_visibility(visible)
+        self.canvas_visibility = visible
