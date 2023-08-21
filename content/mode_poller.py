@@ -110,12 +110,15 @@ class Actions:
                 current_mode = available_mode
                 break
         
+        if "command" in active_modes and current_mode == "dictation":
+            current_mode = "mixed"
+        
         return current_mode
 
     def hud_toggle_mode():
         """Toggle the current mode to a new mode"""
         current_mode = actions.user.hud_determine_mode()
-        if current_mode in ["command", "dictation"]:
+        if current_mode in ["command", "dictation", "mixed"]:
             #Change so talon_hud performs the same actions as the voice commands "talon sleep" and "talon wake" does. This makes sure the mouse is also deactivated when clicking on the talon_hud mode indicator icon.
             #actions.speech.disable()
             actions.user.engine_mimic("talon sleep")
