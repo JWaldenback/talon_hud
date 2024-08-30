@@ -132,7 +132,6 @@ class HeadUpDisplay:
         #Add the mode icon and mic toggle by default
         actions.user.hud_activate_poller("mode_toggle")
         actions.user.hud_add_single_click_mic_toggle()
-        #actions.user.hud_enable_id("event_log")
 
     def enable(self, persisted=False):
         if not self.enabled:
