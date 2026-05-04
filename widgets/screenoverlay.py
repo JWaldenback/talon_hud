@@ -2,7 +2,7 @@ from ..base_widget import BaseWidget
 from ..utils import layout_rich_text, hit_test_rect, is_light_colour, hex_to_ints
 from ..content.typing import HudScreenRegion, HudParticle
 from ..widget_preferences import HeadUpDisplayUserWidgetPreferences
-from talon import skia, ui, cron, ctrl, canvas
+from talon import skia, ui, cron, ctrl, canvas, settings
 from talon.types.point import Point2d
 import time
 import numpy
@@ -97,7 +97,7 @@ class HeadUpScreenOverlay(BaseWidget):
 
     def enable(self, persisted=False):
         if not self.enabled:
-            self.enabled = True        
+            self.enabled = True
             self.previous_pos = ctrl.mouse_pos()
             
             # Copied over from base widget and altered to reflect the no-canvas state of this widget            
@@ -110,6 +110,7 @@ class HeadUpScreenOverlay(BaseWidget):
             self.focus_canvas = canvas.Canvas(self.x, self.y, 200, self.font_size * 2)
             self.focus_canvas.blocks_mouse = True
             self.focus_canvas.register("draw", self.draw_focus_name)
+            self.focus_canvas.freeze()
             if not self.focused:
                 self.focus_canvas.hide()
             
@@ -132,6 +133,7 @@ class HeadUpScreenOverlay(BaseWidget):
                 self.event_dispatch.request_persist_preferences()
             
             if self.focus_canvas:
+                self.focus_canvas.freeze()                
                 self.focus_canvas.unregister("draw", self.draw_focus_name)
                 self.focus_canvas.close()
                 self.focus_canvas = None
@@ -182,6 +184,7 @@ class HeadUpScreenOverlay(BaseWidget):
             if chunk_key not in self.particle_canvases or self.particle_canvases[chunk_key] is None:
                 chunk_data = needed_chunks[chunk_key]
                 particle_canvas = canvas.Canvas(chunk_data[0], chunk_data[1], chunk_data[2], chunk_data[3])
+                particle_canvas.allows_capture = settings.get("user.talon_hud_allows_capture")
                 particle_canvas.register('draw', self.draw_particles)
                 self.particle_canvases[chunk_key] = particle_canvas
 
@@ -269,7 +272,7 @@ class HeadUpScreenOverlay(BaseWidget):
                 canvas_reference["region"] = region
                 canvas_reference["canvas"].register("draw", canvas_reference["callback"])
                 if not self.canvas_visibility:
-                    canvas_reference["canvas"].hide()                
+                    canvas_reference["canvas"].hide()
                 canvas_reference["canvas"].freeze()
                 self.canvases.append(canvas_reference)
 
@@ -434,16 +437,21 @@ class HeadUpScreenOverlay(BaseWidget):
                 self.draw_rich_text(canvas, paint, content_text, text_x, text_y, 0, True)
 
     def draw_icon(self, canvas, origin_x, origin_y, diameter, paint, region, active):
+        scale = self.theme.get_scale_for_coord(self.x, self.y)
         radius = diameter / 2
         
         if region.colour is not None or ( region.title is not None and region.icon is not None ):
             canvas.draw_circle( origin_x + radius, origin_y + radius, radius, paint)
         
-        if (region.icon is not None and self.theme.get_image(region.icon) is not None ):
+        image, image_scale = self.theme.get_image_and_scale(region.icon, scale)
+        if (region.icon is not None and image is not None ):
             icon_border = self.theme.get_int_value("screen_overlay_icon_padding", 4)
-            image = self.theme.get_image(region.icon, diameter - icon_border, diameter - icon_border)
-            canvas.draw_image(image, origin_x + radius - ( image.height ) / 2, \
-                origin_y + radius - ( image.height ) / 2 )
+            width, height = self.theme.get_dimensions(image, image_scale, diameter - icon_border, diameter - icon_border)
+            canvas.draw_image_rect(
+                image,
+                ui.Rect(0, 0, image.width, image.height),
+                ui.Rect(origin_x + radius - height / 2, origin_y + radius - height / 2, width, height),
+            )
 
     def draw_rich_text(self, canvas, paint, rich_text, x, y, line_padding, single_line=False):
         # Draw text line by line
@@ -517,7 +525,7 @@ class HeadUpScreenOverlay(BaseWidget):
 
             self.setup_type = setup_type
             self.preferences.mark_changed = True
-            self.canvas.pause()
+            self.canvas.freeze()
             self.canvas.unregister("draw", self.setup_draw_cycle)
             self.canvas = None
             
@@ -617,6 +625,7 @@ class HeadUpScreenOverlay(BaseWidget):
         """Implement focus rendering / canvas unfocusing"""
         self.focused = False
         if self.enabled and self.focus_canvas:
+            self.focus_canvas.freeze()
             self.focus_canvas.hide()
 
     def set_visibility(self, visible = True):
