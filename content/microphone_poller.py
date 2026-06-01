@@ -42,7 +42,7 @@ def set_prefered_microphone(microphone):
         f.write(microphone)
 
 def get_prefered_microphone():
-    previous_mic_file
+    global prefered_microphone
     prefered_microphone = "System Default"
     if not os.path.exists(previous_mic_file):
         set_prefered_microphone(prefered_microphone)
@@ -58,18 +58,38 @@ def toggle_microphone(self, _ = None):
     global prefered_microphone
     current_microphone = actions.sound.active_microphone()
     if current_microphone != "None":
+        target = "None"
         actions.sound.set_microphone("None")
     else:
-        if prefered_microphone in actions.sound.microphones():
+        # "System Default" is always a valid argument to set_microphone()
+        # but is not present in actions.sound.microphones(), so accept it
+        # without going through the not-found warning path.
+        if prefered_microphone == "System Default" or prefered_microphone in actions.sound.microphones():
+            target = prefered_microphone
             actions.sound.set_microphone(prefered_microphone)
         else:
             actions.user.hud_add_log("warning", "Could not find " + prefered_microphone + ".\nUsing system default")
+            target = "System Default"
             actions.sound.set_microphone("System Default")
+    try:
+        actions.user.mic_state_log(
+            "hud_mic_click",
+            {"source": "hud_status_bar_mic_icon", "from": current_microphone, "to": target},
+        )
+    except KeyError:
+        pass
         
 def select_microphone(choice):
     set_prefered_microphone(choice["text"])
     actions.sound.set_microphone(choice["text"])
     actions.user.hud_deactivate_poller("microphone_list")
+    try:
+        actions.user.mic_state_log(
+            "hud_mic_select",
+            {"source": "hud_microphone_list", "to": choice["text"]},
+        )
+    except KeyError:
+        pass
 
 class PartialMicrophonePoller(Poller):
     current_microphone = None
