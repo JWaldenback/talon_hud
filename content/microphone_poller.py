@@ -72,7 +72,7 @@ def toggle_microphone(self, _ = None):
             target = "System Default"
             actions.sound.set_microphone("System Default")
     try:
-        actions.user.mic_state_log(
+        actions.user.mic_and_eye_tracker_state_log(
             "hud_mic_click",
             {"source": "hud_status_bar_mic_icon", "from": current_microphone, "to": target},
         )
@@ -84,7 +84,7 @@ def select_microphone(choice):
     actions.sound.set_microphone(choice["text"])
     actions.user.hud_deactivate_poller("microphone_list")
     try:
-        actions.user.mic_state_log(
+        actions.user.mic_and_eye_tracker_state_log(
             "hud_mic_select",
             {"source": "hud_microphone_list", "to": choice["text"]},
         )
